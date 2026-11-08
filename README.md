@@ -46,3 +46,26 @@ python3 server.py --refresh 60 --poly-min-volume 10000 --port 8000
   Live games move faster than one scan.
 - **Order rules.** Polymarket minimum order size (usually 5 shares) and tick sizes aren't enforced in sizing.
 - **No trading.** The scanner never places orders.
+
+## Free hosting: GitHub Actions + GitHub Pages
+
+A scheduled workflow (`.github/workflows/scan.yml`) runs `scan_once.py` every 15 minutes
+and publishes a static copy of the page plus `data/*.json` to GitHub Pages. In that mode
+the page filters and sizes trades in the browser (same maths as the server). The
+"Browse markets" tab needs the server, so it's hidden there.
+
+Free as long as the repository is **public** (standard GitHub-hosted runners).
+
+1. Make the repo public: Settings → General → Danger Zone → Change visibility.
+2. Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+3. Push (`git push origin master`). The first run starts on push; later ones run every
+   ~15 minutes (GitHub can start scheduled runs late). Run one manually from
+   Actions → scan → Run workflow.
+4. The site is at `https://<user>.github.io/<repo>/`.
+
+A failed scan exits non-zero and the previous snapshot stays live. GitHub disables
+schedules after 60 days without commits, so the workflow commits a tiny `.keepalive`
+file when needed.
+
+Running the live server yourself is unchanged: `python3 server.py`. The `Dockerfile`
+also works on any Docker host.

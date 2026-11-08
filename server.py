@@ -7,6 +7,7 @@ Stdlib only. Snapshots are cached to data/*.json so a restart shows data instant
 """
 import argparse
 import hashlib
+import os
 import json
 import threading
 import time
@@ -226,7 +227,9 @@ class Handler(SimpleHTTPRequestHandler):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8000)))
+    ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"),
+                    help="0.0.0.0 to accept outside connections (set automatically in Docker)")
     ap.add_argument("--refresh", type=int, default=60, help="seconds to wait between scans")
     ap.add_argument("--poly-min-volume", type=float, default=10_000,
                     help="skip Polymarket markets with lifetime volume below this (USD)")
@@ -236,8 +239,8 @@ def main():
     STORE.load_cache()
     threading.Thread(target=scan_loop, args=(args.refresh, args.poly_min_volume), daemon=True).start()
 
-    print(f"Serving on http://localhost:{args.port}")
-    ThreadingHTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
+    print(f"Serving on http://{args.host}:{args.port}", flush=True)
+    ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
 
 
 if __name__ == "__main__":

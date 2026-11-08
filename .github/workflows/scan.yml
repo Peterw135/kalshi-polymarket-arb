@@ -1,0 +1,55 @@
+# Scans Kalshi vs Polymarket / Polymarket US every 15 minutes and publishes the
+# results to GitHub Pages. Free for public repositories (standard runners).
+#
+# One-time setup: repo Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+name: scan
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # GitHub may start scheduled runs a few minutes late
+  workflow_dispatch:          # "Run workflow" button in the Actions tab
+  push:
+    branches: [master, main]
+
+permissions:
+  contents: write   # keepalive commit (see last step)
+  pages: write
+  id-token: write
+
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Scan (Python 3, standard library only)
+        run: python3 scan_once.py --out site
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      # GitHub disables scheduled workflows after 60 days without repository activity.
+      # Deploys don't count, so commit a tiny file if the last commit is 50+ days old.
+      - name: Keep the schedule alive
+        run: |
+          last=$(git log -1 --format=%ct)
+          if [ $(( $(date +%s) - last )) -gt $(( 50 * 86400 )) ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            date -u > .keepalive
+            git add .keepalive
+            git commit -m "keepalive: keep scheduled scans enabled"
+            git push
+          fi
