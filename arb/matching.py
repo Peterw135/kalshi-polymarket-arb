@@ -87,6 +87,7 @@ CONFLICT_GROUPS = [
     {"arrested"}, {"indicted"}, {"convicted"}, {"sentenced"},
     {"administration", "cabinet"},  # leaving a specific role != leaving the administration
     {"announce", "announced", "announcement", "confirm", "confirmed"},  # announcing X != X happening
+    {"run", "running", "candidacy", "candidate", "declare", "declares", "enter", "enters", "launch", "launches"},  # running != winning
 ]
 # Club/party noise that doesn't identify a team or person.
 NAME_NOISE = {"fc", "cf", "sc", "ac", "afc", "club", "de", "the", "cd", "sv", "ca", "ec", "fk", "bk",
