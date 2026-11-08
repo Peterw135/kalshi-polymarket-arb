@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalshi × Polymarket</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #fff; --text: #1d1d1b; --muted: #6b6b66; --line: #e4e4df;
+    --kalshi: #0a8f5c; --poly: #2d5bff; --polyus: #7c3aed; --yes: #0a8f5c; --no: #c2410c; --hover: #f1f1ec;
+    --pos: #0a8f5c; --neg: #9a9a94; --warn: #b45309;
+    --hi-bg: #e3f4ec; --hi-fg: #0a6b45; --md-bg: #fdf3dc; --md-fg: #8a5a00; --lo-bg: #f3e8e3; --lo-fg: #9a3b12;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121211; --panel: #1b1b1a; --text: #ececea; --muted: #9a9a94; --line: #2c2c2a;
+            --kalshi: #34c48b; --poly: #7c9bff; --polyus: #b794f6; --yes: #34c48b; --no: #f0874f; --hover: #232321;
+            --pos: #34c48b; --neg: #77776f; --warn: #f0a94f;
+            --hi-bg: #173a2b; --hi-fg: #7fe0b5; --md-bg: #3a2f14; --md-fg: #f2c86b; --lo-bg: #3a2219; --lo-fg: #f0a07a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  header { padding: 14px 20px 10px; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+  h1 { font-size: 18px; margin: 0; font-weight: 650; }
+  nav { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 3px; }
+  nav button { font: inherit; border: 0; background: none; color: var(--muted); padding: 5px 12px; border-radius: 6px; cursor: pointer; }
+  nav button.on { background: var(--hover); color: var(--text); font-weight: 560; }
+  #status { margin-left: auto; color: var(--muted); font-size: 12px; display: flex; gap: 14px; flex-wrap: wrap; }
+  #status .err { color: var(--no); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 0 20px 12px; }
+  .controls label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  input, select { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line);
+                  border-radius: 8px; padding: 6px 9px; }
+  input[type=search] { flex: 1; min-width: 220px; }
+  input[type=number] { width: 90px; }
+  #banner { margin: 0 20px 12px; padding: 9px 12px; border-radius: 8px; font-size: 13px;
+            background: var(--md-bg); color: var(--md-fg); }
+  @media (max-width: 760px) { #banner { margin: 0 16px 12px; } }
+  .summary { color: var(--muted); font-size: 13px; padding: 0 20px 8px; }
+  .view { display: none; } .view.on { display: block; }
+  .wrap { padding: 0 20px 24px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { position: sticky; top: 0; background: var(--panel); font-size: 12px; color: var(--muted); font-weight: 550; z-index: 1; white-space: nowrap; }
+  th.l, td.l { text-align: left; }
+  tbody tr:hover td { background: var(--hover); }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sub { color: var(--muted); font-size: 12px; }
+  a { color: inherit; text-decoration: none; } a:hover { text-decoration: underline; }
+  .venue { font-size: 11px; font-weight: 650; letter-spacing: .02em; margin-right: 6px; }
+  .venue.k { color: var(--kalshi); } .venue.p { color: var(--poly); } .venue.u { color: var(--polyus); }
+  .pair div + div { margin-top: 4px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; border-radius: 5px; padding: 2px 6px; white-space: nowrap; }
+  .badge.high { background: var(--hi-bg); color: var(--hi-fg); }
+  .badge.medium { background: var(--md-bg); color: var(--md-fg); }
+  .badge.low, .badge.none { background: var(--lo-bg); color: var(--lo-fg); }
+  .method { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+  .leg { white-space: nowrap; }
+  .pick { font-size: 12px; margin: 5px 0 0; padding: 3px 7px; border-left: 3px solid var(--warn); background: var(--hover); border-radius: 0 5px 5px 0; white-space: normal; }
+  .venuecell { width: 34%; }
+  .venuecell .mkt { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .venuecell .mkt:hover { color: var(--text); }
+  .venuecell .buy { font-size: 15px; }
+  .spend { font-size: 13px; margin-top: 3px; }
+  .tag { font-size: 10px; font-weight: 700; color: var(--polyus); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; vertical-align: 1px; }
+  .big { font-size: 16px; }
+  .yes { color: var(--yes); } .no { color: var(--no); }
+  .edge-pos { color: var(--pos); font-weight: 650; } .edge-neg { color: var(--neg); }
+  .warn { color: var(--warn); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details[open] summary { color: var(--text); }
+  .detail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px 0 2px; font-size: 12px; text-align: left; white-space: normal; }
+  .detail table td { padding: 2px 6px; border: 0; }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+  /* browse view */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 1100px) { .grid2 { grid-template-columns: 1fr; } }
+  .panel-head { padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 10px; }
+  .panel-head h2 { margin: 0; font-size: 15px; }
+  .scroll { overflow: auto; max-height: calc(100vh - 170px); }
+  .q { display: inline-block; min-width: 34px; }
+  .more { padding: 10px; text-align: center; color: var(--muted); font-size: 12px; }
+  .more button { font: inherit; background: none; border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  @media (max-width: 760px) {
+    header, .controls, .summary, .wrap { padding-left: 16px; padding-right: 16px; }
+    .hide-sm { display: none; }
+    .detail { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kalshi × Polymarket</h1>
+  <nav><button data-view="opps" class="on">Opportunities</button><button data-view="browse">Browse markets</button></nav>
+  <div id="status"></div>
+</header>
+
+<div id="banner" hidden></div>
+
+<section id="opps" class="view on">
+  <div class="controls">
+    <input id="oq" type="search" placeholder="Filter — e.g. nba, fed, election, bitcoin">
+    <label>Budget $ <input id="budget" type="number" min="0" step="100" value="1000"></label>
+    <label>Min edge ¢ <input id="minedge" type="number" step="0.5" value="0"></label>
+    <label>Confidence
+      <select id="tier">
+        <option value="high">High only</option>
+        <option value="medium" selected>Medium or higher</option>
+        <option value="low">Low or higher</option>
+        <option value="all">All matches</option>
+      </select></label>
+    <label>Venue
+      <select id="venue"><option value="all">Kalshi vs both</option><option value="polymarket">Kalshi vs Polymarket</option><option value="polymarket_us">Kalshi vs Polymarket US</option></select></label>
+    <label>Sort
+      <select id="osort"><option value="edge">Edge</option><option value="profit">Profit at budget</option><option value="confidence">Confidence</option></select></label>
+    <label><input id="showall" type="checkbox"> Include pairs with no edge</label>
+  </div>
+  <div class="summary" id="osummary"></div>
+  <div class="wrap"><div class="card"><table>
+    <thead><tr>
+      <th class="l">Match</th><th class="l"><span class="venue k">●</span>Kalshi</th><th class="l"><span class="venue p">●</span>Polymarket</th>
+      <th>Cost / $1 <span class="sub">(your size)</span></th><th>Edge</th><th>Profit</th>
+    </tr></thead>
+    <tbody id="otbody"></tbody>
+  </table><div class="empty" id="oempty" hidden></div></div></div>
+</section>
+
+<section id="browse" class="view">
+  <div class="controls"><input id="bq" type="search" placeholder="Search both venues — e.g. fed, bitcoin, nfl, election"></div>
+  <div class="wrap grid2">
+    <div class="card" data-platform="kalshi">
+      <div class="panel-head"><h2><span class="venue k">●</span>Kalshi</h2><span class="count sub"></span></div>
+      <div class="scroll"><table><thead></thead><tbody></tbody></table><div class="more"></div></div>
+    </div>
+    <div class="card" data-platform="polymarket">
+      <div class="panel-head"><h2><span class="venue p">●</span><select id="rightvenue" style="font-weight:600"><option value="polymarket">Polymarket</option><option value="polymarket_us">Polymarket US</option></select></h2><span class="count sub"></span></div>
+      <div class="scroll"><table><thead></thead><tbody></tbody></table><div class="more"></div></div>
+    </div>
+  </div>
+</section>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const c = v => v == null ? "–" : `${+(v * 100).toFixed(1)}¢`;
+const c2 = v => v == null ? "–" : `${(v * 100).toFixed(2)}¢`;  // cost / fee / edge figures
+const usd = v => v == null ? "–" : (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: v >= 100 || v <= -100 ? 0 : 2 });
+const compact = v => v == null ? "–" : Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(v);
+const date = s => s ? new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" }) : "–";
+const ago = s => { if (!s) return "never"; const m = Math.round((Date.now() - new Date(s)) / 60000); return m < 1 ? "just now" : m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; };
+const store = { get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+// ---------------------------------------------------------------- views
+let view = store.get("view", "opps");
+function setView(v) {
+  view = v; store.set("view", v);
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === v));
+  v === "opps" ? loadOpps() : loadBrowse();
+}
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+
+// ---------------------------------------------------------------- opportunities
+const O = { q: $("#oq"), budget: $("#budget"), minedge: $("#minedge"), tier: $("#tier"), venue: $("#venue"), sort: $("#osort"), showall: $("#showall") };
+const VENUE = { kalshi: ["k", "KALSHI", "K"], polymarket: ["p", "POLY", "P"], polymarket_us: ["u", "POLY US", "US"] };
+for (const [k, el] of Object.entries(O)) {
+  const saved = store.get("o_" + k, null);
+  if (saved != null && k !== "q") el.type === "checkbox" ? (el.checked = saved === "1") : (el.value = saved);
+}
+
+// One venue's side of the trade: market, what to buy, how much.
+function venueCell(r, i, venue) {
+  const l = r.legs[i], m = i === 0 ? r.kalshi : r.polymarket, s = r.sized;
+  const side = l.side === "yes" ? "yes" : "no";
+  const tag = venue === "polymarket_us" ? ` <span class="tag">US</span>` : "";
+  const avg = s && s.contracts ? (i === 0 ? s.avg_price_a : s.avg_price_b) : null;
+  const total = avg != null ? (i === 0 ? s.spend_a : s.spend_b) : null;
+  const fee = avg != null ? (i === 0 ? s.fees_a : s.fees_b) : null;
+  const spend = avg != null
+    ? `<div class="spend">Spend <b>${usd(total)}</b> <span class="sub">→ ${s.contracts.toLocaleString()} shares · avg ${c(avg)}` +
+      `${fee ? ` + ${usd(fee)} fee` : ""}</span></div>`
+    : "";
+  return `<td class="l venuecell">
+    <a class="mkt" href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.title)}</a>${tag}
+    <div class="buy">Buy <b class="${side}">${esc(l.label)}</b> @ <b class="num">${c(l.ask)}</b></div>
+    ${spend}
+  </td>`;
+}
+
+function oppRow(r) {
+  const k = r.kalshi, p = r.polymarket, s = r.sized;
+  const pos = r.edge > 0;
+  const venue = r.venue || "polymarket";
+  const sized = pos && s && s.contracts;
+  const profit = !pos ? `<span class="sub">–</span>` : !sized ? `<span class="sub">no size</span>` :
+    `<div class="edge-pos big">${usd(s.profit)}</div>` +
+    `<div class="sub">spend ${usd(s.cost)} total → pays ${usd(s.contracts)}</div>` +
+    `<div class="sub">fees ${usd(s.fees)} incl.</div>` +
+    (s.limited_by.startsWith("budget") ? "" : `<div class="sub warn">max size (${esc(s.limited_by)})</div>`);
+  // Cost and edge at YOUR size (walking the books), not just the best price.
+  const unit = sized ? s.cost / s.contracts : r.cost;
+  const edge = sized ? 1 - unit : r.edge;
+  const roi = sized ? s.profit / s.cost : r.roi;
+  const fees = sized ? s.fees / s.contracts : r.fees;
+  return `<tr>
+    <td class="l"><span class="badge ${r.tier}" title="${esc(r.reason)}">${r.tier[0].toUpperCase() + r.tier.slice(1)} ${Math.round(r.confidence * 100)}%</span></td>
+    ${venueCell(r, 0, "kalshi")}
+    ${venueCell(r, 1, venue)}
+    <td class="num">${c2(unit)}<div class="sub">fees ${c2(fees)}</div>
+      ${sized ? `<div class="sub">best price ${c2(r.cost)}</div>` : ""}</td>
+    <td class="num"><div class="${edge > 0 ? "edge-pos" : "edge-neg"}">${edge > 0 ? "+" : ""}${c2(edge)}</div>
+      <div class="sub">${roi != null ? (roi * 100).toFixed(2) + "% ROI" : ""}</div>
+      ${sized ? `<div class="sub">best price +${c2(r.edge)}</div>` : ""}</td>
+    <td class="num">${profit}</td>
+  </tr>`;
+}
+
+let oToken;
+async function loadOpps() {
+  for (const [k, el] of Object.entries(O)) if (k !== "q") store.set("o_" + k, el.type === "checkbox" ? (el.checked ? "1" : "0") : el.value);
+  const minEdge = O.showall.checked ? -1 : (parseFloat(O.minedge.value) || 0) / 100;
+  const params = new URLSearchParams({ q: O.q.value.trim(), tier: O.tier.value, min_edge: minEdge,
+    budget: O.budget.value || 0, sort: O.sort.value, venue: O.venue.value, limit: 300 });
+  const token = (oToken = Symbol());
+  const res = await fetch(`/api/opportunities?${params}`).then(r => r.json()).catch(() => null);
+  if (token !== oToken || !res) return;
+  $("#otbody").innerHTML = res.rows.map(oppRow).join("");
+  const nPos = res.rows.filter(r => r.edge > 0).length;
+  $("#osummary").textContent = `${res.matched.toLocaleString()} matched pairs scanned · ${res.total.toLocaleString()} shown` +
+    (O.showall.checked ? ` · ${nPos} with positive edge` : "") + (res.total > res.rows.length ? ` (top ${res.rows.length})` : "") +
+    " · prices are best asks after taker fees; Polymarket from the live CLOB, Kalshi depth fetched for positive-edge pairs";
+  const empty = $("#oempty");
+  empty.hidden = res.rows.length > 0;
+  empty.textContent = res.matched ? "No opportunities match these filters. Try lowering confidence or min edge." :
+    "Waiting for the first scan… (about a minute after start)";
+}
+let ot;
+Object.values(O).forEach(el => el.addEventListener("input", () => { clearTimeout(ot); ot = setTimeout(loadOpps, 200); }));
+
+// ---------------------------------------------------------------- browse
+const PAGE = 100;
+const COLS = [
+  { key: "title", label: "Market" }, { key: "yes_ask", label: "Yes bid / ask" }, { key: null, label: "No bid / ask" },
+  { key: "volume_24h", label: "24h vol" }, { key: "liquidity", label: "Liq / OI" }, { key: "close_time", label: "Closes" },
+];
+const bstate = { sort: "volume_24h", dir: "desc" };
+const panels = {};
+const cents = v => v == null ? '<span class="q sub">–</span>' : `<span class="q">${+(v * 100).toFixed(1)}¢</span>`;
+
+function brow(m, platform) {
+  const sub = [m.outcome && m.outcome !== m.title ? m.outcome : "", m.event_title !== m.title ? m.event_title : ""].filter(Boolean).join(" · ");
+  const money = platform === "polymarket" ? "$" : "";
+  return `<tr>
+    <td class="l"><a href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.title)}</a>
+        <div class="sub">${esc(sub)}${sub ? " · " : ""}${esc(m.id)}</div></td>
+    <td class="num yes">${cents(m.yes_bid)} ${cents(m.yes_ask)}</td>
+    <td class="num no">${cents(m.no_bid)} ${cents(m.no_ask)}</td>
+    <td class="num">${money}${compact(m.volume_24h)}</td>
+    <td class="num">${money}${compact(m.liquidity)}</td>
+    <td class="num">${date(m.close_time)}</td></tr>`;
+}
+
+async function loadPanel(key, append = false) {
+  const p = panels[key], platform = p.platform;
+  p.thead.innerHTML = "<tr>" + COLS.map((col, i) => `<th class="${i ? "" : "l"}" data-key="${col.key ?? ""}" style="cursor:${col.key ? "pointer" : "default"}">${col.label}${col.key === bstate.sort ? (bstate.dir === "desc" ? " ↓" : " ↑") : ""}</th>`).join("") + "</tr>";
+  const offset = append ? p.loaded : 0;
+  const params = new URLSearchParams({ platform, q: $("#bq").value.trim(), sort: bstate.sort, dir: bstate.dir, limit: PAGE, offset });
+  const token = (p.token = Symbol());
+  const res = await fetch(`/api/markets?${params}`).then(r => r.json());
+  if (token !== p.token) return;
+  p.loaded = offset + res.markets.length;
+  const html = res.markets.map(m => brow(m, platform)).join("");
+  append ? p.tbody.insertAdjacentHTML("beforeend", html) : (p.tbody.innerHTML = html);
+  p.count.textContent = `${res.total.toLocaleString()} markets`;
+  p.more.innerHTML = p.loaded < res.total ? `Showing ${p.loaded.toLocaleString()} of ${res.total.toLocaleString()} <button>Load more</button>` : res.total ? "" : "No markets match.";
+  p.more.querySelector("button")?.addEventListener("click", () => loadPanel(key, true));
+}
+function loadBrowse() { Object.keys(panels).forEach(p => loadPanel(p)); }
+
+document.querySelectorAll("[data-platform]").forEach(sec => {
+  const platform = sec.dataset.platform;
+  panels[platform] = { platform, thead: sec.querySelector("thead"), tbody: sec.querySelector("tbody"), count: sec.querySelector(".count"), more: sec.querySelector(".more"), loaded: 0 };
+  sec.querySelector("thead").addEventListener("click", e => {
+    const key = e.target.closest("th")?.dataset.key;
+    if (!key) return;
+    if (bstate.sort === key) bstate.dir = bstate.dir === "desc" ? "asc" : "desc";
+    else { bstate.sort = key; bstate.dir = key === "title" || key === "close_time" ? "asc" : "desc"; }
+    loadBrowse();
+  });
+});
+$("#rightvenue").addEventListener("change", e => { panels.polymarket.platform = e.target.value; loadPanel("polymarket"); });
+let bt;
+$("#bq").addEventListener("input", () => { clearTimeout(bt); bt = setTimeout(loadBrowse, 200); });
+
+// ---------------------------------------------------------------- status
+const seen = {};
+async function pollStatus() {
+  const st = await fetch("/api/status").then(r => r.json()).catch(() => null);
+  if (!st) return;
+  const names = { kalshi: "Kalshi", polymarket: "Polymarket", polymarket_us: "Polymarket US", scan: "Scan" };
+  $("#status").innerHTML = Object.entries(st).map(([k, s]) => {
+    const busy = s.state === "fetching" ? ` · ${esc(s.progress)}` : "";
+    return s.state === "error" ? `<span class="err">${names[k]}: ${esc(s.error)}</span>`
+      : `<span>${names[k]} ${s.count ? s.count.toLocaleString() + " · " : ""}${ago(s.updated_at)}${busy}</span>`;
+  }).join("");
+  // Say plainly when the table isn't from a fresh scan yet.
+  const sc = st.scan, banner = $("#banner");
+  if (sc.from_cache) {
+    banner.hidden = false;
+    banner.textContent = `Showing saved results from ${ago(sc.updated_at)} (before the server restarted). ` +
+      `A fresh scan is running and will replace them automatically in about 2 minutes.`;
+  } else if (!sc.updated_at) {
+    banner.hidden = false;
+    banner.textContent = `Running the first scan… results appear here automatically in about 2 minutes` +
+      (sc.progress ? ` (${sc.progress})` : "") + ".";
+  } else banner.hidden = true;
+  const changed = ["scan", "kalshi", "polymarket", "polymarket_us"].some(k => seen[k] !== undefined && seen[k] !== st[k].updated_at);
+  for (const k in st) seen[k] = st[k].updated_at;
+  if (changed) view === "opps" ? loadOpps() : loadBrowse();
+}
+
+setView(view);
+pollStatus();
+setInterval(pollStatus, 3000);
+</script>
+</body>
+</html>
